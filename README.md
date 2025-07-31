@@ -149,3 +149,4 @@ This project is licensed under the MIT License.
 - Built with [shadcn/ui](https://ui.shadcn.com/)
 - Powered by [Supabase](https://supabase.com/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
+# Nexus
