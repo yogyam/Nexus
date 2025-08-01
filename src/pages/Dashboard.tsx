@@ -44,7 +44,7 @@ const Dashboard = () => {
 
   const fetchProjects = async () => {
     try {
-      // Get projects where user is owner - simplified query to avoid RLS issues
+      // Simple approach: just get projects where user is owner
       const { data: projectsData, error } = await supabase
         .from('projects')
         .select(`
@@ -53,8 +53,7 @@ const Dashboard = () => {
           description,
           created_at,
           owner_id,
-          rubric_url,
-          assignment_text
+          rubric_url
         `)
         .eq('owner_id', user?.id)
         .order('created_at', { ascending: false });
@@ -63,13 +62,13 @@ const Dashboard = () => {
         console.error('Error fetching projects:', error);
         toast({
           title: "Error",
-          description: "Failed to load projects",
+          description: `Failed to load projects: ${error.message}`,
           variant: "destructive",
         });
         return;
       }
 
-      // For each project, get member count and task count separately
+      // For each project, get member count and task count
       const formattedProjects = await Promise.all(
         (projectsData || []).map(async (project) => {
           // Get member count
@@ -100,6 +99,11 @@ const Dashboard = () => {
       setProjects(formattedProjects);
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load projects",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

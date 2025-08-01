@@ -5,10 +5,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Users, Calendar, CheckCircle, Circle, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Calendar, CheckCircle, Circle, Clock, FileText, Bot, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TaskForm } from '@/components/TaskForm';
 import { AssignmentViewer } from '@/components/AssignmentViewer';
+import { AssignmentEditor } from '@/components/AssignmentEditor';
+import { TaskEditor } from '@/components/TaskEditor';
+import { TeamManagement } from '@/components/TeamManagement';
+import { TaskStatusUpdate } from '@/components/TaskStatusUpdate';
+import { AITaskGenerator } from '@/components/AITaskGenerator';
 import { Logo } from '@/components/Logo';
 import { Navigation } from '@/components/Navigation';
 
@@ -26,7 +31,7 @@ interface Project {
   id: string;
   title: string;
   description: string | null;
-  assignment_text: string | null;
+  assignment_text?: string | null;
   owner_id: string;
   created_at: string;
 }
@@ -36,9 +41,15 @@ const Project = () => {
   const { user, loading: authLoading } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamSize, setTeamSize] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showAssignmentViewer, setShowAssignmentViewer] = useState(false);
+  const [showAssignmentEditor, setShowAssignmentEditor] = useState(false);
+  const [showTaskEditor, setShowTaskEditor] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showTeamManagement, setShowTeamManagement] = useState(false);
+  const [showAITaskGenerator, setShowAITaskGenerator] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -76,6 +87,19 @@ const Project = () => {
         .order('created_at', { ascending: false });
 
       if (tasksError) throw tasksError;
+
+      // Get team size (owner + members)
+      const { count: memberCount, error: memberError } = await supabase
+        .from('project_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', id);
+
+      if (memberError) {
+        console.error('Error fetching team size:', memberError);
+        setTeamSize(1); // Default to 1 if error
+      } else {
+        setTeamSize((memberCount || 0) + 1); // +1 for owner
+      }
 
       setProject(projectData);
       setTasks(tasksData || []);
@@ -150,13 +174,40 @@ const Project = () => {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowTeamManagement(true)}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Team
+              </Button>
+              {project.assignment_text && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAssignmentViewer(true)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Assignment
+                  </Button>
+                  {project.owner_id === user?.id && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowAssignmentEditor(true)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Assignment
+                    </Button>
+                  )}
+                </>
+              )}
               {project.assignment_text && (
                 <Button 
                   variant="outline" 
-                  onClick={() => setShowAssignmentViewer(true)}
+                  onClick={() => setShowAITaskGenerator(true)}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
-                  View Assignment
+                  <Bot className="h-4 w-4 mr-2" />
+                  AI Tasks
                 </Button>
               )}
               <Button onClick={() => setShowTaskForm(true)}>
@@ -212,14 +263,34 @@ const Project = () => {
                     <div className="flex items-start space-x-3 flex-1">
                       {getStatusIcon(task.status)}
                       <div className="flex-1">
-                        <h3 className="font-medium text-foreground">{task.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-foreground">{task.title}</h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingTask(task);
+                              setShowTaskEditor(true);
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
                         {task.description && (
                           <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
                         )}
                         <div className="flex items-center space-x-4 mt-3">
-                          <Badge className={getStatusColor(task.status)}>
-                            {task.status}
-                          </Badge>
+                          <TaskStatusUpdate
+                            taskId={task.id}
+                            currentStatus={task.status}
+                            onStatusChange={(newStatus) => {
+                              const updatedTasks = tasks.map(t => 
+                                t.id === task.id ? { ...t, status: newStatus } : t
+                              );
+                              setTasks(updatedTasks);
+                            }}
+                          />
                           {task.due_date && (
                             <div className="flex items-center text-sm text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
@@ -255,6 +326,47 @@ const Project = () => {
           projectTitle={project.title}
         />
       )}
+      
+      <TeamManagement
+        open={showTeamManagement}
+        onOpenChange={setShowTeamManagement}
+        projectId={id!}
+        projectTitle={project.title}
+        isOwner={project.owner_id === user?.id}
+      />
+      
+      <AITaskGenerator
+        open={showAITaskGenerator}
+        onOpenChange={setShowAITaskGenerator}
+        projectId={id!}
+        projectTitle={project.title}
+        teamSize={teamSize}
+        onTasksGenerated={fetchProjectData}
+      />
+      
+      <AssignmentEditor
+        open={showAssignmentEditor}
+        onOpenChange={setShowAssignmentEditor}
+        projectId={id!}
+        projectTitle={project.title}
+        currentAssignment={project.assignment_text || ''}
+        onAssignmentUpdated={(newAssignment) => {
+          setProject(prev => prev ? { ...prev, assignment_text: newAssignment } : null);
+        }}
+      />
+      
+      <TaskEditor
+        open={showTaskEditor}
+        onOpenChange={setShowTaskEditor}
+        task={editingTask}
+        projectId={id!}
+        onTaskUpdated={(updatedTask) => {
+          const updatedTasks = tasks.map(t => 
+            t.id === updatedTask.id ? updatedTask : t
+          );
+          setTasks(updatedTasks);
+        }}
+      />
     </div>
   );
 };

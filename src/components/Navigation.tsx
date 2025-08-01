@@ -4,7 +4,7 @@ import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, Shield } from 'lucide-react';
 import { Logo } from './Logo';
 
 export const Navigation = () => {
@@ -20,6 +20,8 @@ export const Navigation = () => {
   const getInitials = (email: string) => {
     return email.split('@')[0].substring(0, 2).toUpperCase();
   };
+
+  const isAdmin = user?.email === 'ymehrotra123@gmail.com';
 
   return (
     <nav className="border-b border-border bg-card">
@@ -55,6 +57,11 @@ export const Navigation = () => {
                         {getInitials(user.email)}
                       </AvatarFallback>
                     </Avatar>
+                    {isAdmin && (
+                      <div className="absolute -top-1 -right-1 h-3 w-3 bg-yellow-500 rounded-full border-2 border-background flex items-center justify-center">
+                        <Shield className="h-2 w-2 text-background" />
+                      </div>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -71,6 +78,12 @@ export const Navigation = () => {
                     <User className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate('/admin')}>
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>Admin Panel</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />

@@ -1,152 +1,114 @@
-# Nexus - Collaborative Student Projects
+# Nexus Collab Spark
 
-A modern web application for student teams to organize group projects, manage tasks, and collaborate effectively.
+A collaborative project management platform built with React, TypeScript, and Supabase.
 
-## 🚀 Features
+## Getting Started
 
-- **Project Management** - Create and organize collaborative projects
-- **Task Tracking** - Manage tasks with status updates (To Do, In Progress, Done)
-- **Assignment Viewer** - Copy and paste assignment text for easy reference
-- **Team Collaboration** - Work together with classmates on group projects
-- **Modern UI** - Beautiful, responsive design with smooth animations
-- **Real-time Updates** - Live data synchronization across team members
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui (Radix UI)
-- **Backend**: Supabase
-- **Database**: PostgreSQL
-- **Authentication**: Supabase Auth
-- **State Management**: TanStack Query
-- **Routing**: React Router DOM
-
-## 📋 Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- Supabase account
-
-## 🚀 Getting Started
-
-### 1. Clone the Repository
-
-```bash
-git clone <your-repo-url>
-cd nexus-collab-spark
-```
-
-### 2. Install Dependencies
-
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-### 3. Set Up Supabase
-
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Run the database migrations in your Supabase SQL Editor:
-   ```sql
-   -- Run the migration files from supabase/migrations/
-   -- This will create all necessary tables and RLS policies
-   ```
-
-### 4. Configure Environment Variables
-
+2. Set up environment variables:
 Create a `.env` file in the root directory:
-
 ```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 5. Start Development Server
-
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-The application will be available at `http://localhost:8080`
+## Gemini API Setup
 
-## 📁 Project Structure
+To use the AI task generation feature:
 
+1. Get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Add the API key to your `.env` file as `VITE_GEMINI_API_KEY`
+3. The AI will automatically break down assignments into tasks based on team size
+
+## Gmail API Setup
+
+To use the email invitation system:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create a new project or select an existing one
+3. Enable the Gmail API
+4. Create OAuth 2.0 credentials (Web application type)
+5. Add the credentials to your `.env` file:
+   - `VITE_GMAIL_API_KEY`
+   - `VITE_GMAIL_CLIENT_ID`
+   - `VITE_GMAIL_CLIENT_SECRET`
+
+## Troubleshooting Database Issues
+
+If you're experiencing "Failed to load projects" errors, follow these steps:
+
+### 1. Fix RLS Policies
+Run the following SQL in your Supabase SQL Editor:
+
+```sql
+-- Drop existing RLS policies for projects table
+DROP POLICY IF EXISTS "Users can view projects they are members of" ON public.projects;
+DROP POLICY IF EXISTS "Users can create projects" ON public.projects;
+DROP POLICY IF EXISTS "Project owners can update projects" ON public.projects;
+DROP POLICY IF EXISTS "Project owners can delete projects" ON public.projects;
+
+-- Create simpler RLS policies for projects
+CREATE POLICY "Users can view their own projects" 
+ON public.projects FOR SELECT 
+USING (auth.uid() = owner_id);
+
+CREATE POLICY "Users can create projects" 
+ON public.projects FOR INSERT 
+WITH CHECK (auth.uid() = owner_id);
+
+CREATE POLICY "Project owners can update projects" 
+ON public.projects FOR UPDATE 
+USING (auth.uid() = owner_id);
+
+CREATE POLICY "Project owners can delete projects" 
+ON public.projects FOR DELETE 
+USING (auth.uid() = owner_id);
 ```
-src/
-├── components/          # Reusable UI components
-│   ├── ui/             # shadcn/ui components
-│   ├── AuthProvider.tsx # Authentication context
-│   ├── Logo.tsx        # Nexus logo component
-│   ├── Navigation.tsx  # Navigation bar
-│   ├── ProjectForm.tsx # Project creation form
-│   └── TaskForm.tsx    # Task creation form
-├── pages/              # Page components
-│   ├── Index.tsx       # Landing page
-│   ├── Auth.tsx        # Authentication page
-│   ├── Dashboard.tsx   # User dashboard
-│   └── Project.tsx     # Individual project view
-├── integrations/       # External service integrations
-│   └── supabase/       # Supabase client and types
-└── hooks/              # Custom React hooks
-```
 
-## 🗄️ Database Schema
+### 2. Check Database Connection
+The application includes a debug component that will help identify specific database issues. Look for the "Database Connection Test" section when no projects are found.
 
-The application uses the following tables:
+### 3. Verify Migrations
+Make sure all database migrations have been applied:
+- `20250730060059-6ba52342-bb7a-4546-8291-b310fe31aeae.sql` - Initial schema
+- `20250731063200_add_assignment_text.sql` - Assignment text column
+- `20250731063201_add_email_to_profiles.sql` - Email column
+- `20250731063202_create_invitations.sql` - Team invitations system
 
-- **profiles** - User profile information
-- **projects** - Project data with assignment text
-- **project_members** - Many-to-many relationship between users and projects
+## Team Invitations
+
+The application now supports a complete invitation system:
+
+- **Existing Users**: If the email is already registered, users are added immediately to the project
+- **New Users**: If the email isn't registered, an invitation is created and stored in the database
+- **Invitation Management**: Project owners can view pending invitations and cancel them if needed
+- **Future Email Integration**: The system is ready for email notifications (requires additional setup)
+
+## Database Schema
+
+The application uses the following main tables:
+- **profiles** - User profiles with authentication data
+- **projects** - Project information and ownership
+- **project_members** - Junction table for project membership
 - **tasks** - Task management within projects
 
-## 🔧 Available Scripts
+## Features
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## 🎨 Customization
-
-### Styling
-The application uses Tailwind CSS for styling. You can customize the design by modifying:
-- `tailwind.config.ts` - Tailwind configuration
-- `src/index.css` - Global styles
-- Component-specific classes
-
-### Components
-All UI components are built with shadcn/ui and can be customized in `src/components/ui/`.
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Set environment variables in Vercel dashboard
-4. Deploy!
-
-### Netlify
-1. Build the project: `npm run build`
-2. Deploy the `dist` folder to Netlify
-
-### Other Platforms
-The application can be deployed to any static hosting platform that supports React applications.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🙏 Acknowledgments
-
-- Built with [shadcn/ui](https://ui.shadcn.com/)
-- Powered by [Supabase](https://supabase.com/)
-- Styled with [Tailwind CSS](https://tailwindcss.com/)
-# Nexus
+- User authentication with Supabase Auth
+- Project creation and management
+- Task tracking with status updates
+- Team collaboration features
+- **AI-powered task generation** using Gemini API
+- **Email invitations** via Gmail API
+- **Assignment editing** - Edit project assignments anytime
+- **Task editing** - Edit individual tasks anytime
+- **Invitation acceptance** - Click-to-accept email links
+- Modern UI with Tailwind CSS and shadcn/ui components
